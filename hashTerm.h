@@ -62,7 +62,8 @@ public:
     Table table;
     TrainTerm(void);
     ~TrainTerm(void);
-    Table *addTable();
+    Table *add(float theta, float d, float th, float p);
+    bool *decrease();
 };
 
 class HashTerm
