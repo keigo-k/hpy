@@ -51,36 +51,36 @@ Table *TrainTerm::add(float theta, float d, float th, float p){
 
     ++c;
     float rand = xorshift();
-    Table *p=&table;
+    Table *tp=&table;
     do{
-        rand-=((float)p->c - d)/denominator;
+        rand-=((float)tp->c - d)/denominator;
         if(rand<=0){
-            p->c++;        
-            return p;
+            tp->c++;        
+            return tp;
         }
 
-        if(p->next==NULL){
+        if(tp->next==NULL){
             break;
         }
 
-        p=p->next;
+        tp=tp->next;
     }while(1);
     
     ++t;
-	if((p->next=(Table *)malloc(sizeof(Table)))==NULL){
+	if((tp->next=(Table *)malloc(sizeof(Table)))==NULL){
         cerr << "ERROR:Can not get memory in malloc.\nYou must need more memory.\n";
 		exit(EXIT_FAILURE);
 	}
 
-    p=p->next;
-    p->c=1;
-    p->next=NULL;
-    return p;
+    tp=tp->next;
+    tp->c=1;
+    tp->next=NULL;
+    return tp;
 }
 
-bool *TrainTerm::decrease(){
-    --c;
+bool TrainTerm::decrease(){
     if(t==1){
+        --c;
         --table.c;
         if(c==0){
             t=0;
@@ -89,34 +89,40 @@ bool *TrainTerm::decrease(){
         return false;      
     }
 
+    Table *p;
     float rand = xorshift();
     rand-=((float)table.c)/c;
     if(rand<=0){
+        --c;
         --table.c;
         if(table.c==0){
             --t;
             table.c=(table.next)->c;
-            free(table.next);
-            table.next=NULL;
+            p=table.next;
+            table.next=(table.next)->next;
+            free(p);
             return true;
         }
         return false;      
-        
     }
 
     Table *tmp=&table;
-    Table *p=table.next;
+    p=table.next;
     do{
-
         rand-=((float)p->c)/c;
         if(rand<=0 || p->next==NULL){
             break;
         }
+        tmp=p;
         p=p->next;
     }while(1);
 
-    p->c--;
+    --c;
+    --(p->c);
     if(p->c==0){
+        --t;
+        tmp->next=p->next;
+        free(p);
         return true;
     }
 

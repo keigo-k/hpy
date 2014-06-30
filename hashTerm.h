@@ -25,6 +25,7 @@ e-mail: keigo.kubo89{@}gmail.com   << Please transform {@} into @
 #include <vector>
 #include <stdlib.h>
 #include <string.h>
+#include "xorshift.h"
 
 using namespace std;
 
@@ -63,7 +64,7 @@ public:
     TrainTerm(void);
     ~TrainTerm(void);
     Table *add(float theta, float d, float th, float p);
-    bool *decrease();
+    bool decrease();
 };
 
 class HashTerm
