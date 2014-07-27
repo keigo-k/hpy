@@ -1,133 +1,8 @@
-/*
-Slearp (structured learning and prediction) is the structured learning and predict toolkit for tasks such as g2p conversion, based on discriminative leaning.
-Copyright (C) 2013, 2014 Keigo Kubo
-
-Slearp is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-any later version.
-
-Slearp is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with slearp.  If not, see <http://www.gnu.org/licenses/>.
-
-date:   2014/3/03
-author: Keigo Kubo
-belong: Nara Institute Sience and Technology (NAIST)
-e-mail: keigo.kubo89{@}gmail.com   << Please transform {@} into @
-*/
-
 #include "hashTerm.h"
+#include "BSTNgram.h"
 #include <iostream>
 #include <fstream>
 
-
-TrainTerm::TrainTerm(){
-    table.c=0;
-    table.next=NULL;
-}
-
-TrainTerm::~TrainTerm(){
-	Table *tmp, *p=table.next;
-	for(;p!=NULL;p=tmp){
-		tmp=p->next;
-		free(p);
-	}
-}
-
-Table *TrainTerm::add(float theta, float d, float th, float p){
-    if(t==0){
-        ++c;
-        ++t;
-        table.c=1;
-        return &table;
-    }
-
-    float denominator = c-d*t + (theta+d*th)*p;
-
-    ++c;
-    float rand = xorshift();
-    Table *tp=&table;
-    do{
-        rand-=((float)tp->c - d)/denominator;
-        if(rand<=0){
-            tp->c++;        
-            return tp;
-        }
-
-        if(tp->next==NULL){
-            break;
-        }
-
-        tp=tp->next;
-    }while(1);
-    
-    ++t;
-	if((tp->next=(Table *)malloc(sizeof(Table)))==NULL){
-        cerr << "ERROR:Can not get memory in malloc.\nYou must need more memory.\n";
-		exit(EXIT_FAILURE);
-	}
-
-    tp=tp->next;
-    tp->c=1;
-    tp->next=NULL;
-    return tp;
-}
-
-bool TrainTerm::decrease(){
-    if(t==1){
-        --c;
-        --table.c;
-        if(c==0){
-            t=0;
-            return true;
-        }
-        return false;      
-    }
-
-    Table *p;
-    float rand = xorshift();
-    rand-=((float)table.c)/c;
-    if(rand<=0){
-        --c;
-        --table.c;
-        if(table.c==0){
-            --t;
-            table.c=(table.next)->c;
-            p=table.next;
-            table.next=(table.next)->next;
-            free(p);
-            return true;
-        }
-        return false;      
-    }
-
-    Table *tmp=&table;
-    p=table.next;
-    do{
-        rand-=((float)p->c)/c;
-        if(rand<=0 || p->next==NULL){
-            break;
-        }
-        tmp=p;
-        p=p->next;
-    }while(1);
-
-    --c;
-    --(p->c);
-    if(p->c==0){
-        --t;
-        tmp->next=p->next;
-        free(p);
-        return true;
-    }
-
-    return false;
-}
 
 HashTerm::HashTerm() : TermTable(NULL){
 }
@@ -224,9 +99,9 @@ int HashTerm::keyequalWithlen(const char *x,
 void HashTerm::initialize(unsigned int size){
 	unsigned int i;
 
-	numTerm=0;
-	maxlenx=0;
-	maxleny=0;
+	//numTerm=0;
+	//maxlenx=0;
+	//maxleny=0;
 	hashSize=size;
 
 	if((TermTable=(Term **)malloc(size*sizeof(Term *)))==NULL){
@@ -239,7 +114,7 @@ void HashTerm::initialize(unsigned int size){
 	}
 }
 
-Term *HashTerm::registTrain(const char *targetx, const char *targety){
+Term *HashTerm::registInTrain(const char *targetx, const char *targety){
 	TERM_LEN lenTargetx=termlen(targetx);
 	TERM_LEN lenTargety=termlen(targety);
 	Term **pp=hashWithlen(targetx, lenTargetx, targety, lenTargety);
@@ -261,21 +136,61 @@ Term *HashTerm::registTrain(const char *targetx, const char *targety){
 
 	p->x=targetx;
 	p->lenx=lenTargetx;
+    /*
 	if(lenTargetx>maxlenx){
 		maxlenx=lenTargetx;
-	}
+	}*/
 
 	p->y=targety;
 	p->leny=lenTargety;
+    /*
 	if(lenTargety>maxleny){
 		maxleny=lenTargety;
-	}
+	}*/
 
-	++numTerm;
+	//++numTerm;
     return p;
 }
 
-Term *HashTerm::registPredict(const char *targetx, unsigned short storeSizex, const char *targety, unsigned short storeSizey){
+Term *HashTerm::registInPredict(const char *targetx, const char *targety){
+	TERM_LEN lenTargetx=termlen(targetx);
+	TERM_LEN lenTargety=termlen(targety);
+	Term **pp=hashWithlen(targetx, lenTargetx, targety, lenTargety);
+	Term *p=*pp;
+
+	for(;p!=NULL;p=p->next){
+		if(p->lenx==lenTargetx
+            && p->leny==lenTargety
+			&& keyequalWithlen(p->x, targetx, lenTargetx)
+			&& keyequalWithlen(p->y, targety, lenTargety)){
+			
+			return p; // already regist
+		}
+	}
+
+	p=new PredictTerm;
+	p->next=*pp;
+	*pp=p;
+
+	p->x=targetx;
+	p->lenx=lenTargetx;
+    /*
+	if(lenTargetx>maxlenx){
+		maxlenx=lenTargetx;
+	}*/
+
+	p->y=targety;
+	p->leny=lenTargety;
+    /*
+	if(lenTargety>maxleny){
+		maxleny=lenTargety;
+	}*/
+
+	//++numTerm;
+    return p;
+}
+
+Term *HashTerm::registWithMemory(const char *targetx, unsigned short storeSizex, const char *targety, unsigned short storeSizey){
 	TERM_LEN lenTargetx=termlen(targetx);
 	TERM_LEN lenTargety=termlen(targety);
 
@@ -306,19 +221,53 @@ Term *HashTerm::registPredict(const char *targetx, unsigned short storeSizex, co
 	memcpy(pstr, targetx, storeSizex);
 	p->x=pstr;
 	p->lenx=lenTargetx;
+    /*
 	if(lenTargetx>maxlenx){
 		maxlenx=lenTargetx;
-	}
+	}*/
 
 	memcpy(pstr+storeSizex, targety, storeSizey);
     p->y=pstr+storeSizex;
     p->leny=lenTargety;
+    /*
 	if(lenTargety>maxleny){
 		maxleny=lenTargety;
+	}*/
+
+	//++numTerm;
+	return p;
+}
+
+void HashTerm::delTerm(const char *targetx, const char *targety){
+	TERM_LEN lenTargetx=termlen(targetx);
+	TERM_LEN lenTargety=termlen(targety);
+	Term **pp=hashWithlen(targetx, lenTargetx, targety, lenTargety);
+	Term *p=*pp;
+
+	if(p->lenx==lenTargetx
+        && p->leny==lenTargety
+		&& keyequalWithlen(p->x, targetx, lenTargetx)
+		&& keyequalWithlen(p->y, targety, lenTargety)){
+
+        *pp=p->next;
+        delete p;
+        return;
 	}
 
-	++numTerm;
-	return p;
+    Term *tmp=p;
+    p=p->next;
+	for(;p!=NULL;p=p->next){
+		if(p->lenx==lenTargetx
+            && p->leny==lenTargety
+			&& keyequalWithlen(p->x, targetx, lenTargetx)
+			&& keyequalWithlen(p->y, targety, lenTargety)){
+
+			tmp->next=p->next;
+            delete p;
+            return;
+		}
+        tmp=p;
+	}
 }
 
 Term *HashTerm::refer(const char *targetx, TERM_LEN lenTargetx, const char *targety, TERM_LEN lenTargety){
@@ -360,3 +309,73 @@ void HashTerm::writeTerms(const char *write){
 	}
 }
 
+void HashTerm::writePredictTerms(const char *write){
+	ofstream WRITE;
+	string writeFile(".term");
+	writeFile=write+writeFile;
+	WRITE.open(writeFile.c_str(), ios_base::trunc);
+	if (!WRITE)
+	{
+		cerr << "ERROR:Can not write term: " << writeFile << endl;
+		exit(EXIT_FAILURE);
+	}else{
+		PredictTerm *p;
+		unsigned int i;
+		for(i=0;i<hashSize;++i){
+			for(p=(PredictTerm *)TermTable[i];p!=NULL;p=(PredictTerm *)p->next){
+				WRITE << p->x;
+				WRITE << "\t";
+				WRITE << p->lenx;
+				WRITE << "\t";
+				WRITE << p->y;
+				WRITE << "\t";
+				WRITE << p->leny;
+				WRITE << "\t";
+				WRITE << p->p;
+				WRITE << "\n";
+			}
+		}
+		WRITE.close();
+	}
+}
+
+void HashTerm::writeTrainTerms(const char *write){
+	ofstream WRITE;
+	string writeFile(".term");
+	writeFile=write+writeFile;
+	WRITE.open(writeFile.c_str(), ios_base::trunc);
+	if (!WRITE)
+	{
+		cerr << "ERROR:Can not write term: " << writeFile << endl;
+		exit(EXIT_FAILURE);
+	}else{
+		TrainTerm *p;
+        Table *tp;
+		unsigned int i;
+		for(i=0;i<hashSize;++i){
+			for(p=(TrainTerm *)TermTable[i];p!=NULL;p=(TrainTerm *)p->next){
+				WRITE << p->x;
+				WRITE << "\t";
+				WRITE << p->lenx;
+				WRITE << "\t";
+				WRITE << p->y;
+				WRITE << "\t";
+				WRITE << p->leny;
+				WRITE << "\t";
+				WRITE << p->c;
+				WRITE << "\t";
+				WRITE << p->t;
+				WRITE << "\t";
+				WRITE << p->table.c;
+                tp = p->table.next;
+                while(tp){
+				    WRITE << "\t";
+				    WRITE << tp->c;
+                    tp=tp->next;
+                }
+				WRITE << "\n";
+			}
+		}
+		WRITE.close();
+	}
+}
